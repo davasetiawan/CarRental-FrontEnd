@@ -266,12 +266,7 @@ export default function PaymentHistoryPage() {
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <Link href={`/my-rentals/${payment.rentalId}`}>
-                            <button className="text-gray-500 hover:text-[#D4AF37] transition text-sm flex items-center gap-1">
-                              <Eye className="w-4 h-4" />
-                              View Rental
-                            </button>
-                          </Link>
+                         
                           {payment.proofUrl && (
                             <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer">
                               <button className="text-blue-500 hover:text-blue-600 transition text-sm flex items-center gap-1">

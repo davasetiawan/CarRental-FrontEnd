@@ -206,7 +206,7 @@ export default function DashboardPage() {
     { href: '/admin/manage-cars', icon: Car, label: 'Manage Cars', desc: 'Add, edit, or remove vehicles', color: 'bg-[#D4AF37]/10 text-[#D4AF37]' },
     { href: '/admin/all-rentals', icon: Calendar, label: 'All Rentals', desc: 'View all bookings', color: 'bg-blue-50 text-blue-600' },
     { href: '/admin/verify-payments', icon: CreditCard, label: 'Verify Payments', desc: 'Confirm transactions', color: 'bg-yellow-50 text-yellow-600' },
-    { href: '/admin/users', icon: Users, label: 'Manage Users', desc: 'User management', color: 'bg-purple-50 text-purple-600' },
+   
   ];
 
   const menus = isAdmin ? adminMenus : userMenus;
@@ -313,11 +313,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <button className="w-full text-[#D4AF37] font-semibold text-sm hover:underline flex items-center justify-center gap-1">
-                  View Full Report <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
+             
             </div>
           </div>
         )}

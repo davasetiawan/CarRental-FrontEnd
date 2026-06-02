@@ -303,7 +303,7 @@ export default function MyRentalsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D4AF37] mx-auto mb-4"></div>
-        <p className="text-gray-500">Loading your rentals...</p>
+        
       </div>
     );
   }
@@ -435,18 +435,7 @@ export default function MyRentalsPage() {
 
                       {/* Actions */}
                       <div className="pt-3 border-t border-gray-100 flex justify-between items-center flex-wrap gap-2">
-                        <div className="flex gap-3">
-                          <Link href={`/cars/${rental.carId}`}>
-                            <button className="text-gray-500 hover:text-[#D4AF37] transition text-sm flex items-center gap-1">
-                              <Car className="w-4 h-4" /> View Car
-                            </button>
-                          </Link>
-                          <Link href={`/my-rentals/${rental.id}`}>
-                            <button className="text-gray-500 hover:text-[#D4AF37] transition text-sm flex items-center gap-1">
-                              <Eye className="w-4 h-4" /> Details
-                            </button>
-                          </Link>
-                        </div>
+                        
                         {showCancel && (
                           <button
                             onClick={() => handleCancelRental(rental.id)}
