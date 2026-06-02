@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Car, Plus, Edit, Trash2, X, Loader2, Search, ChevronLeft, ChevronRight, Crown, Sparkles, TrendingUp, DollarSign, Upload, Power, PowerOff, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToatsContext';
-
+;
 
 interface CarData {
   id: number;
@@ -25,7 +25,6 @@ export default function ManageCarsPage() {
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
   
-  // State untuk semua mobil (termasuk yang INACTIVE)
   const [allCars, setAllCars] = useState<CarData[]>([]);
   const [filteredCars, setFilteredCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +35,6 @@ export default function ManageCarsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const itemsPerPage = 6;
   const [formData, setFormData] = useState({
     name: '',
@@ -44,12 +42,9 @@ export default function ManageCarsPage() {
     pricePerDay: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  
-  // State untuk upload gambar
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Helper function untuk normalisasi status (case insensitive)
   const getNormalizedStatus = (status: string) => {
     if (!status) return 'UNKNOWN';
     const upper = status.toUpperCase();
@@ -59,15 +54,6 @@ export default function ManageCarsPage() {
     return upper;
   };
 
-  // Simpan ke localStorage setiap kali allCars berubah
-  useEffect(() => {
-    if (allCars.length > 0 && !isInitialLoad) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allCars));
-      console.log('Saved to localStorage:', allCars.length);
-    }
-  }, [allCars, isInitialLoad]);
-
-  // Cek admin access
   useEffect(() => {
     if (!isLoading && (!user || user.role?.toLowerCase() !== 'admin')) {
       showToast('Access denied. Admin only.', 'error');
@@ -75,61 +61,12 @@ export default function ManageCarsPage() {
     }
   }, [isLoading, user, router, showToast]);
 
-  // Fetch initial cars - PRIORITAS DARI LOCALSTORAGE DULU
   useEffect(() => {
     if (user?.role?.toLowerCase() === 'admin') {
-      loadCarsData();
+      fetchCars();
     }
   }, [user]);
 
-  const loadCarsData = async () => {
-    // Coba ambil dari localStorage dulu
-    const cachedData = localStorage.getItem(STORAGE_KEY);
-    if (cachedData) {
-      try {
-        const parsedData = JSON.parse(cachedData);
-        console.log('Loaded from localStorage:', parsedData.length);
-        setAllCars(parsedData);
-        setFilteredCars(parsedData);
-        setIsInitialLoad(false);
-        setLoading(false);
-      } catch (e) {
-        console.error('Error parsing localStorage data:', e);
-      }
-    }
-    
-    // Tetap fetch dari backend untuk sync (tanpa menimpa jika data sudah ada)
-    try {
-      const response = await api.get('/cars');
-      console.log('Fetched from backend:', response.data.length);
-      
-      // Gabungkan data dari backend dengan data localStorage
-      // Prioritaskan data yang sudah ada di localStorage (termasuk INACTIVE)
-      setAllCars(prevCars => {
-        const existingIds = new Set(prevCars.map(c => c.id));
-        const newCarsFromBackend = response.data.filter((car: CarData) => !existingIds.has(car.id));
-        const mergedCars = [...prevCars, ...newCarsFromBackend];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedCars));
-        return mergedCars;
-      });
-      
-      setFilteredCars(prev => {
-        const existingIds = new Set(prev.map(c => c.id));
-        const newCarsFromBackend = response.data.filter((car: CarData) => !existingIds.has(car.id));
-        return [...prev, ...newCarsFromBackend];
-      });
-    } catch (error) {
-      console.error('Error fetching from backend:', error);
-      if (!cachedData) {
-        showToast('Failed to load cars', 'error');
-      }
-    } finally {
-      setIsInitialLoad(false);
-      setLoading(false);
-    }
-  };
-
-  // Filter cars berdasarkan search dan status
   useEffect(() => {
     let filtered = [...allCars];
     
@@ -149,6 +86,20 @@ export default function ManageCarsPage() {
     setFilteredCars(filtered);
     setCurrentPage(1);
   }, [searchTerm, statusFilter, allCars]);
+
+  const fetchCars = async () => {
+    try {
+      const response = await api.get('/cars');
+      console.log('Fetched cars:', response.data);
+      setAllCars(response.data);
+      setFilteredCars(response.data);
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+      showToast('Failed to load cars', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -187,7 +138,6 @@ export default function ManageCarsPage() {
     resetImageForm();
   };
 
-  // CREATE - Update state lokal dan localStorage
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -206,11 +156,7 @@ export default function ManageCarsPage() {
       });
       
       console.log('Create response:', response.data);
-      
-      // Update state lokal (tambah mobil baru di awal array)
-      const newCar = response.data;
-      setAllCars(prev => [newCar, ...prev]);
-      
+      setAllCars(prev => [response.data, ...prev]);
       showToast('Car created successfully!', 'success');
       setIsModalOpen(false);
       resetForm();
@@ -222,7 +168,6 @@ export default function ManageCarsPage() {
     }
   };
 
-  // UPDATE - Update state lokal dan localStorage
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCar) return;
@@ -242,11 +187,7 @@ export default function ManageCarsPage() {
       });
       
       console.log('Update response:', response.data);
-      
-      // Update state lokal
-      const updatedCar = response.data;
-      setAllCars(prev => prev.map(car => car.id === updatedCar.id ? updatedCar : car));
-      
+      setAllCars(prev => prev.map(car => car.id === response.data.id ? response.data : car));
       showToast('Car updated successfully!', 'success');
       setIsModalOpen(false);
       setSelectedCar(null);
@@ -259,29 +200,27 @@ export default function ManageCarsPage() {
     }
   };
 
-  // DELETE - Hapus dari state lokal dan localStorage
+  // PERBAIKAN: Fungsi Delete yang benar
   const handleDelete = async () => {
     if (!selectedCar) return;
     setSubmitting(true);
 
     try {
       await api.delete(`/cars/${selectedCar.id}`);
-      
-      // Update state lokal (hapus mobil)
+      console.log('Car deleted:', selectedCar.id);
       setAllCars(prev => prev.filter(car => car.id !== selectedCar.id));
-      
       showToast('Car deleted successfully!', 'success');
       setIsDeleteModalOpen(false);
       setSelectedCar(null);
     } catch (error: any) {
       console.error('Error deleting car:', error);
-      showToast(error.response?.data?.message || 'Failed to delete car', 'error');
+      const errorMessage = error.response?.data?.message || 'Failed to delete car';
+      showToast(errorMessage, 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // TOGGLE STATUS - Update state lokal dan localStorage
   const handleToggleStatus = async () => {
     if (!selectedCar) return;
     setSubmitting(true);
@@ -291,12 +230,8 @@ export default function ManageCarsPage() {
       const newStatus = currentStatus === 'AVAILABLE' ? 'INACTIVE' : 'AVAILABLE';
       
       const response = await api.patch(`/cars/${selectedCar.id}`, { status: newStatus });
-      
       console.log('Status update response:', response.data);
-      
-      // Update state lokal
-      const updatedCar = response.data;
-      setAllCars(prev => prev.map(car => car.id === updatedCar.id ? updatedCar : car));
+      setAllCars(prev => prev.map(car => car.id === response.data.id ? response.data : car));
       
       showToast(`Car ${newStatus === 'AVAILABLE' ? 'activated' : 'deactivated'} successfully!`, 'success');
       setIsDeactivateModalOpen(false);
@@ -309,15 +244,12 @@ export default function ManageCarsPage() {
     }
   };
 
-  // Force sync dengan backend (hapus localStorage dan fetch ulang)
   const handleForceSync = async () => {
     setLoading(true);
     try {
       const response = await api.get('/cars');
-      console.log('Sync from backend:', response.data);
       setAllCars(response.data);
       setFilteredCars(response.data);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(response.data));
       showToast('Data synced with server!', 'success');
     } catch (error) {
       console.error('Error syncing:', error);
@@ -327,7 +259,6 @@ export default function ManageCarsPage() {
     }
   };
 
-  // Modal handlers
   const openCreateModal = () => {
     setSelectedCar(null);
     resetForm();
@@ -356,14 +287,12 @@ export default function ManageCarsPage() {
     setIsDeactivateModalOpen(true);
   };
 
-  // Pagination
   const totalPages = Math.ceil(filteredCars.length / itemsPerPage);
   const paginatedCars = filteredCars.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Stats - dari allCars (termasuk INACTIVE)
   const totalCars = allCars.length;
   const availableCars = allCars.filter(c => getNormalizedStatus(c.status) === 'AVAILABLE').length;
   const rentedCars = allCars.filter(c => getNormalizedStatus(c.status) === 'RENTED').length;
@@ -410,7 +339,6 @@ export default function ManageCarsPage() {
               <button
                 onClick={handleForceSync}
                 className="bg-white/20 backdrop-blur-sm text-white font-semibold px-4 py-3 rounded-xl hover:bg-white/30 transition flex items-center gap-2"
-                title="Sync with server (will remove inactive cars from view)"
               >
                 <RefreshCw className="w-4 h-4" />
                 Sync
@@ -511,12 +439,8 @@ export default function ManageCarsPage() {
             <Car className="w-20 h-20 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No vehicles found</h3>
             <p className="text-gray-500 mb-6">Try adjusting your search or add a new car</p>
-            <button
-              onClick={openCreateModal}
-              className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition inline-flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Car
+            <button onClick={openCreateModal} className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition inline-flex items-center gap-2">
+              <Plus className="w-5 h-5" /> Add New Car
             </button>
           </div>
         ) : (
@@ -524,39 +448,27 @@ export default function ManageCarsPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedCars.map((car) => (
                 <div key={car.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-[#D4AF37]/30">
-                  {/* Car Image Area */}
                   <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                     {car.imageUrl ? (
-                      <img 
-                        src={car.imageUrl} 
-                        alt={car.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
+                      <img src={car.imageUrl} alt={car.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Car className="w-16 h-16 text-gray-400 group-hover:scale-110 transition-all duration-500 group-hover:text-[#D4AF37]/50" />
                       </div>
                     )}
-                    
-                    {/* Status Badge */}
                     <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(car.status)}`}>
                       {getNormalizedStatus(car.status)}
                     </div>
-                    
-                    {/* Premium Badge */}
                     <div className="absolute top-4 left-4 flex items-center gap-1 bg-[#D4AF37]/90 px-2 py-1 rounded-full">
                       <Crown className="w-3 h-3 text-white" />
                       <span className="text-white text-xs font-semibold">Premium</span>
                     </div>
                   </div>
 
-                  {/* Car Details */}
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#D4AF37] transition">
-                          {car.name}
-                        </h3>
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#D4AF37] transition">{car.name}</h3>
                         <p className="text-gray-500 text-sm">{car.plateNumber}</p>
                       </div>
                       <span className="text-xs text-gray-400">ID: {car.id}</span>
@@ -564,42 +476,19 @@ export default function ManageCarsPage() {
 
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
                       <div>
-                        <span className="text-2xl font-bold text-[#D4AF37]">
-                          Rp{car.pricePerDay.toLocaleString()}
-                        </span>
+                        <span className="text-2xl font-bold text-[#D4AF37]">Rp{car.pricePerDay.toLocaleString()}</span>
                         <span className="text-gray-500 text-sm ml-1">/day</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        {/* Tombol Deactivate/Activate */}
                         {(getNormalizedStatus(car.status) === 'AVAILABLE' || getNormalizedStatus(car.status) === 'INACTIVE') && (
-                          <button
-                            onClick={() => openDeactivateModal(car)}
-                            className={`p-2 rounded-lg transition ${
-                              getNormalizedStatus(car.status) === 'AVAILABLE'
-                                ? 'text-orange-500 hover:bg-orange-50'
-                                : 'text-green-500 hover:bg-green-50'
-                            }`}
-                            title={getNormalizedStatus(car.status) === 'AVAILABLE' ? 'Deactivate' : 'Activate'}
-                          >
-                            {getNormalizedStatus(car.status) === 'AVAILABLE' ? (
-                              <PowerOff className="w-5 h-5" />
-                            ) : (
-                              <Power className="w-5 h-5" />
-                            )}
+                          <button onClick={() => openDeactivateModal(car)} className={`p-2 rounded-lg transition ${getNormalizedStatus(car.status) === 'AVAILABLE' ? 'text-orange-500 hover:bg-orange-50' : 'text-green-500 hover:bg-green-50'}`}>
+                            {getNormalizedStatus(car.status) === 'AVAILABLE' ? <PowerOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
                           </button>
                         )}
-                        <button
-                          onClick={() => openEditModal(car)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit"
-                        >
+                        <button onClick={() => openEditModal(car)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
                           <Edit className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => openDeleteModal(car)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-                          title="Delete"
-                        >
+                        <button onClick={() => openDeleteModal(car)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
@@ -612,31 +501,15 @@ export default function ManageCarsPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 mt-8">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-gray-200 hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg border border-gray-200 hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg font-medium transition ${
-                      currentPage === page
-                        ? 'bg-[#D4AF37] text-white'
-                        : 'border border-gray-200 hover:border-[#D4AF37] text-gray-600'
-                    }`}
-                  >
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-10 h-10 rounded-lg font-medium transition ${currentPage === page ? 'bg-[#D4AF37] text-white' : 'border border-gray-200 hover:border-[#D4AF37] text-gray-600'}`}>
                     {page}
                   </button>
                 ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg border border-gray-200 hover:border-[#D4AF37] disabled:opacity-50 disabled:cursor-not-allowed transition">
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
@@ -645,116 +518,48 @@ export default function ManageCarsPage() {
         )}
       </div>
 
-      {/* Create/Edit Modal (sama seperti sebelumnya) */}
+      {/* Create/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
             <div className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">
-                {selectedCar ? 'Edit Car' : 'Add New Car'}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-white hover:text-gray-200 transition"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <h2 className="text-xl font-bold text-white">{selectedCar ? 'Edit Car' : 'Add New Car'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-white hover:text-gray-200 transition"><X className="w-6 h-6" /></button>
             </div>
             <form onSubmit={selectedCar ? handleUpdate : handleCreate} className="p-6">
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2 text-sm">Car Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition"
-                  placeholder="e.g., Lamborghini Huracán"
-                  required
-                />
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition" placeholder="e.g., Lamborghini Huracán" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2 text-sm">Plate Number</label>
-                <input
-                  type="text"
-                  name="plateNumber"
-                  value={formData.plateNumber}
-                  onChange={handleInputChange}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition"
-                  placeholder="e.g., B 1234 ABC"
-                  required
-                />
+                <input type="text" name="plateNumber" value={formData.plateNumber} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition" placeholder="e.g., B 1234 ABC" required />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2 text-sm">Price per Day (Rp)</label>
-                <input
-                  type="number"
-                  name="pricePerDay"
-                  value={formData.pricePerDay}
-                  onChange={handleInputChange}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition"
-                  placeholder="e.g., 1500000"
-                  required
-                />
+                <input type="number" name="pricePerDay" value={formData.pricePerDay} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition" placeholder="e.g., 1500000" required />
               </div>
 
-              {/* Image Upload */}
               <div className="mb-6">
                 <label className="block text-gray-700 font-medium mb-2 text-sm">Car Image</label>
-                
                 {imagePreview && (
                   <div className="relative mb-3 rounded-xl overflow-hidden border border-gray-200">
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
-                      className="w-full h-40 object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImagePreview(null);
-                        setImageFile(null);
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover" />
+                    <button type="button" onClick={() => { setImagePreview(null); setImageFile(null); }} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"><X className="w-4 h-4" /></button>
                   </div>
                 )}
-
                 <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 cursor-pointer hover:border-[#D4AF37] transition group">
                   <Upload className="w-5 h-5 text-gray-400 group-hover:text-[#D4AF37]" />
-                  <span className="text-gray-500 group-hover:text-[#D4AF37]">
-                    {imagePreview ? 'Change Image' : 'Upload Image (Optional)'}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="hidden"
-                  />
+                  <span className="text-gray-500 group-hover:text-[#D4AF37]">{imagePreview ? 'Change Image' : 'Upload Image (Optional)'}</span>
+                  <input type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
                 </label>
                 <p className="text-xs text-gray-400 mt-1">Max 5MB, format: JPG, PNG, WEBP</p>
               </div>
 
               <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white font-semibold py-2.5 rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    selectedCar ? 'Update Car' : 'Create Car'
-                  )}
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button type="submit" disabled={submitting} className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white font-semibold py-2.5 rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (selectedCar ? 'Update Car' : 'Create Car')}
                 </button>
               </div>
             </form>
@@ -770,30 +575,12 @@ export default function ManageCarsPage() {
               <h2 className="text-xl font-bold text-white">Delete Car</h2>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 mb-2">
-                Are you sure you want to delete <span className="font-semibold">{selectedCar.name}</span>?
-              </p>
+              <p className="text-gray-700 mb-2">Are you sure you want to delete <span className="font-semibold">{selectedCar.name}</span>?</p>
               <p className="text-gray-500 text-sm mb-6">This action cannot be undone.</p>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={submitting}
-                  className="flex-1 bg-red-500 text-white font-semibold py-2.5 rounded-xl hover:bg-red-600 transition disabled:opacity-50"
-                >
-                  {submitting ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Deleting...
-                    </div>
-                  ) : (
-                    'Delete Car'
-                  )}
+                <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button onClick={handleDelete} disabled={submitting} className="flex-1 bg-red-500 text-white font-semibold py-2.5 rounded-xl hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Delete Car'}
                 </button>
               </div>
             </div>
@@ -806,37 +593,16 @@ export default function ManageCarsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
-              <h2 className="text-xl font-bold text-white">
-                {getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'Deactivate Car' : 'Activate Car'}
-              </h2>
+              <h2 className="text-xl font-bold text-white">{getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'Deactivate Car' : 'Activate Car'}</h2>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 mb-2">
-                Are you sure you want to {getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'deactivate' : 'activate'} <span className="font-semibold">{selectedCar.name}</span>?
-              </p>
-              <p className="text-gray-500 text-sm mb-6">
-                {getNormalizedStatus(selectedCar.status) === 'AVAILABLE' 
-                  ? 'This car will not be available for rent during maintenance/service.'
-                  : 'This car will be available for rent again.'}
-              </p>
+              <p className="text-gray-700 mb-2">Are you sure you want to {getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'deactivate' : 'activate'} <span className="font-semibold">{selectedCar.name}</span>?</p>
+              <p className="text-gray-500 text-sm mb-6">{getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'This car will not be available for rent during maintenance/service.' : 'This car will be available for rent again.'}</p>
               <p className="text-xs text-gray-400">The car will remain in the list and can be activated again anytime.</p>
               <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => setIsDeactivateModalOpen(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleToggleStatus}
-                  disabled={submitting}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-2.5 rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'Deactivate' : 'Activate'
-                  )}
+                <button onClick={() => setIsDeactivateModalOpen(false)} className="flex-1 bg-gray-100 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-200 transition">Cancel</button>
+                <button onClick={handleToggleStatus} disabled={submitting} className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-2.5 rounded-xl hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (getNormalizedStatus(selectedCar.status) === 'AVAILABLE' ? 'Deactivate' : 'Activate')}
                 </button>
               </div>
             </div>
