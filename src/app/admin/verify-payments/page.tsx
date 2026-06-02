@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   Car, Calendar, CreditCard, CheckCircle, XCircle, 
   Clock, AlertCircle, Eye, Crown, Search, DollarSign,
-  User, FileImage, RefreshCw, Ban
+  User, FileImage, RefreshCw, Ban, Download
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToatsContext';
@@ -55,6 +55,7 @@ export default function VerifyPaymentsPage() {
   const [actionType, setActionType] = useState<'confirm' | 'reject' | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   // Cek admin access
   useEffect(() => {
@@ -83,6 +84,35 @@ export default function VerifyPaymentsPage() {
     }
     setFilteredPayments(filtered);
   }, [searchTerm, payments]);
+
+  const handleDownloadProof = async (payment: Payment) => {
+    if (!payment.proofUrl) {
+      showToast('No proof file available', 'error');
+      return;
+    }
+
+    setDownloadingId(payment.id);
+    try {
+      const response = await fetch(payment.proofUrl);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `payment_${payment.id}_proof.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast('File downloaded successfully!', 'success');
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      showToast('Failed to download file', 'error');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const fetchAllPayments = async () => {
     try {
@@ -347,22 +377,36 @@ export default function VerifyPaymentsPage() {
                       </div>
                     </div>
 
-                    {/* Payment Proof - Pasti ada karena sudah difilter */}
+                    {/* Payment Proof - dengan tombol Download */}
                     <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex items-center gap-2">
                           <FileImage className="w-4 h-4 text-blue-600" />
                           <span className="text-sm text-blue-700">Payment proof uploaded</span>
                         </div>
-                        <a 
-                          href={payment.proofUrl || '#'} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View Proof
-                        </a>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDownloadProof(payment)}
+                            disabled={downloadingId === payment.id}
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                          >
+                            {downloadingId === payment.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                            Download
+                          </button>
+                          <a 
+                            href={payment.proofUrl || '#'} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </a>
+                        </div>
                       </div>
                     </div>
 
@@ -523,29 +567,36 @@ export default function VerifyPaymentsPage() {
                   </div>
                 </div>
 
-                {/* Payment Proof */}
+                {/* Payment Proof with Download */}
                 {selectedPayment.proofUrl && (
                   <div className="bg-gray-50 rounded-xl p-4">
                     <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
                       <FileImage className="w-4 h-4 text-[#D4AF37]" />
                       Payment Proof
                     </h3>
-                    <div className="flex justify-center">
+                    <div className="flex justify-center mb-3">
                       <img 
                         src={selectedPayment.proofUrl} 
                         alt="Payment proof" 
                         className="rounded-xl border border-gray-200 max-h-64 w-auto object-contain"
                       />
                     </div>
-                    <a 
-                      href={selectedPayment.proofUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm mt-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Open in new tab
-                    </a>
+                    <div className="flex justify-center gap-3">
+                      <button
+                        onClick={() => handleDownloadProof(selectedPayment)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      >
+                        <Download className="w-4 h-4" /> Download
+                      </button>
+                      <a 
+                        href={selectedPayment.proofUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                      >
+                        <Eye className="w-4 h-4" /> Open in new tab
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>

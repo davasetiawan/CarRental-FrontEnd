@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-
-import { Car, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, Clock, ArrowRight, Eye, Trash2 } from 'lucide-react';
+import { Car, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, Clock, ArrowRight, Eye, Trash2, FileText } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToatsContext';
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
 interface Rental {
   id: number;
@@ -33,6 +33,174 @@ interface Rental {
     status: string;
   };
 }
+
+// Styles untuk PDF
+const styles = StyleSheet.create({
+  page: {
+    padding: 40,
+    backgroundColor: '#ffffff',
+    fontFamily: 'Helvetica',
+  },
+  header: {
+    marginBottom: 30,
+    borderBottom: 2,
+    borderBottomColor: '#D4AF37',
+    paddingBottom: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    backgroundColor: '#f5f5f5',
+    padding: 8,
+    marginBottom: 10,
+    color: '#D4AF37',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 5,
+  },
+  label: {
+    fontSize: 11,
+    color: '#666666',
+    width: '40%',
+  },
+  value: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    width: '60%',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#dddddd',
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  totalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+  },
+  footer: {
+    marginTop: 40,
+    textAlign: 'center',
+    fontSize: 10,
+    color: '#999999',
+    borderTopWidth: 1,
+    borderTopColor: '#eeeeee',
+    paddingTop: 20,
+  },
+  thankYou: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+});
+
+// Komponen PDF Invoice
+const RentalInvoice = ({ rental }: { rental: Rental }) => {
+  const days = Math.ceil((new Date(rental.endDate).getTime() - new Date(rental.startDate).getTime()) / (1000 * 60 * 60 * 24));
+  const invoiceNumber = `INV-${rental.id}-${new Date(rental.createdAt).getFullYear()}`;
+  const date = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>CARRENTAL</Text>
+          <Text style={styles.subtitle}>Luxury Car Rental Invoice</Text>
+          <Text style={styles.subtitle}>Invoice #: {invoiceNumber}</Text>
+          <Text style={styles.subtitle}>Date: {date}</Text>
+        </View>
+
+        {/* Rental Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>RENTAL DETAILS</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Rental ID:</Text>
+            <Text style={styles.value}>#{rental.id}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Car Name:</Text>
+            <Text style={styles.value}>{rental.car.name}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Plate Number:</Text>
+            <Text style={styles.value}>{rental.car.plateNumber}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Rental Period:</Text>
+            <Text style={styles.value}>
+              {new Date(rental.startDate).toLocaleDateString('id-ID')} - {new Date(rental.endDate).toLocaleDateString('id-ID')}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Duration:</Text>
+            <Text style={styles.value}>{days} day{days !== 1 ? 's' : ''}</Text>
+          </View>
+        </View>
+
+        {/* Payment Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>PAYMENT DETAILS</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Payment ID:</Text>
+            <Text style={styles.value}>#{rental.payment?.id}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Payment Status:</Text>
+            <Text style={styles.value}>{rental.payment?.status?.toUpperCase() || 'PAID'}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Price per Day:</Text>
+            <Text style={styles.value}>Rp{rental.car.pricePerDay.toLocaleString()}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Number of Days:</Text>
+            <Text style={styles.value}>{days}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>TOTAL AMOUNT</Text>
+            <Text style={styles.totalValue}>Rp{rental.totalPrice.toLocaleString()}</Text>
+          </View>
+        </View>
+
+        {/* Thank You */}
+        <Text style={styles.thankYou}>Thank you for choosing CarRental!</Text>
+        <Text style={styles.footer}>
+          CarRental Luxury • Jl. Danau Ranau Raya G6 B5 • support@carrental.com • +62857-3157-7074
+        </Text>
+      </Page>
+    </Document>
+  );
+};
 
 export default function MyRentalsPage() {
   const router = useRouter();
@@ -108,6 +276,11 @@ export default function MyRentalsPage() {
     rentalStatus.toLowerCase() === 'pending' && paymentStatus.toLowerCase() === 'pending';
   const isPaymentVerified = (paymentStatus: string) => 
     ['paid', 'verified'].includes(paymentStatus.toLowerCase());
+  const canDownloadInvoice = (rentalStatus: string, paymentStatus: string) => {
+    // Bisa download jika rental sudah completed atau payment sudah verified
+    return rentalStatus.toLowerCase() === 'completed' || 
+           ['paid', 'verified'].includes(paymentStatus.toLowerCase());
+  };
 
   const getStatusBadge = (status: string) => {
     const s = status.toLowerCase();
@@ -168,6 +341,7 @@ export default function MyRentalsPage() {
                 const showCancel = canCancel(rental.status);
                 const showUpload = isPendingPayment(rental.status, rental.payment?.status || 'PENDING');
                 const showVerified = isPaymentVerified(rental.payment?.status || 'PENDING');
+                const showDownload = canDownloadInvoice(rental.status, rental.payment?.status || 'PENDING');
                 const days = Math.ceil((new Date(rental.endDate).getTime() - new Date(rental.startDate).getTime()) / (1000 * 60 * 60 * 24));
 
                 return (
@@ -238,6 +412,24 @@ export default function MyRentalsPage() {
                             <CheckCircle className="w-4 h-4 text-green-600" />
                             <span className="text-sm text-green-700">Payment verified successfully!</span>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Download Invoice Button */}
+                      {showDownload && (
+                        <div className="mb-3">
+                          <PDFDownloadLink
+                            document={<RentalInvoice rental={rental} />}
+                            fileName={`invoice_${rental.id}.pdf`}
+                            className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            {({ loading }) => (
+                              <>
+                                <FileText className="w-4 h-4" />
+                                {loading ? 'Generating PDF...' : 'Download Invoice (PDF)'}
+                              </>
+                            )}
+                          </PDFDownloadLink>
                         </div>
                       )}
 
