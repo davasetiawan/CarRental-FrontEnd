@@ -234,7 +234,7 @@ export default function Home() {
                         </span>
                         <span className="text-gray-500 text-sm ml-1">/day</span>
                       </div>
-                      <Link href={`/cars/${car.id}`}>
+                      <Link href={`/login`}>
                         <button className={`text-gray-600 hover:text-[#D4AF37] transition font-medium flex items-center gap-1 ${
                           car.status?.toLowerCase() !== 'available' ? 'opacity-50 cursor-not-allowed' : ''
                         }`}>
