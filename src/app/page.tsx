@@ -24,7 +24,7 @@ export default function Home() {
       try {
         const response = await api.get('/cars');
         // Ambil 3 mobil pertama untuk featured collection
-        setFeaturedCars(response.data.slice(0, 3));
+        setFeaturedCars(response.data.slice(0, 6));
       } catch (error) {
         console.error('Error fetching cars:', error);
       } finally {
