@@ -215,7 +215,7 @@ export function Navbar() {
               {/* Menu untuk Admin */}
               {isLoggedIn && isAdmin && (
                 <>
-                  <Link href="/admin/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-gray-600 py-2">
+                  <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-gray-600 py-2">
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Link>
