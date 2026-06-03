@@ -23,8 +23,8 @@ export default function Home() {
     const fetchCars = async () => {
       try {
         const response = await api.get('/cars');
-        // Ambil 3 mobil pertama untuk featured collection
-        setFeaturedCars(response.data.slice(0, 6));
+        const activeCars = response.data.filter((car: Car) => car.status?.toLowerCase() !== 'inactive');
+        setFeaturedCars(activeCars.slice(0, 6));
       } catch (error) {
         console.error('Error fetching cars:', error);
       } finally {

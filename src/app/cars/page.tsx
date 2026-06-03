@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { api } from '@/lib/api';
 import { Car, Search, Sparkles, Crown, Star, ArrowRight, Shield } from 'lucide-react';
 
@@ -24,16 +23,26 @@ export default function CarsPage() {
     api.get('/cars')
       .then(res => {
         console.log('Cars data:', res.data);
+        // Debug: lihat status masing-masing mobil
+        res.data.forEach((car: Car) => {
+          console.log(`Car: ${car.name}, Status: "${car.status}"`);
+        });
         setCars(res.data);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 
+  // 🔥 PERBAIKAN: Filter dengan case-insensitive dan multiple kondisi
   const filteredCars = cars.filter(car => {
     const matchesSearch = car.name.toLowerCase().includes(search.toLowerCase()) ||
       car.plateNumber.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
+    
+    // 🔥 EXCLUDE INACTIVE - bandingkan dalam lowercase
+    const statusLower = car.status?.toLowerCase();
+    const isActive = statusLower !== 'inactive';  // TAMPILKAN jika BUKAN 'inactive'
+    
+    return matchesSearch && isActive;
   });
 
   if (loading) {
@@ -50,6 +59,9 @@ export default function CarsPage() {
   const isAvailable = (status: string) => {
     return status?.toLowerCase() === 'available';
   };
+
+  const inactiveCount = cars.filter(c => c.status?.toLowerCase() === 'inactive').length;
+  const activeCount = cars.length - inactiveCount;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-gray-50">
@@ -88,7 +100,7 @@ export default function CarsPage() {
         <div className="flex justify-between items-center">
           <p className="text-gray-500 text-sm">
             Showing <span className="font-semibold text-gray-800">{filteredCars.length}</span> of{' '}
-            <span className="font-semibold text-gray-800">{cars.length}</span> vehicles
+            <span className="font-semibold text-gray-800">{activeCount}</span> active vehicles
           </p>
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
@@ -165,7 +177,7 @@ export default function CarsPage() {
                           </span>
                           <span className="text-gray-500 text-sm ml-1">/day</span>
                         </div>
-                        <Link href={`/booking/${car.id}`}>
+                        <Link href={`/cars/${car.id}`}>
                           <button
                             className={`flex items-center gap-2 px-5 py-2 rounded-full font-semibold transition-all duration-300 ${
                               available
@@ -174,7 +186,7 @@ export default function CarsPage() {
                             }`}
                             disabled={!available}
                           >
-                            {available ? 'Rent Now' : 'Unavailable'}
+                            {available ? 'View Details' : 'Unavailable'}
                             <ArrowRight className="w-4 h-4" />
                           </button>
                         </Link>

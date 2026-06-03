@@ -1,15 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { api } from '@/lib/api';
-
-import { Car, Calendar, Fuel, Gauge, ArrowLeft, CheckCircle, XCircle, Star } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToatsContext';
-
+import { Car, Calendar, DollarSign, Fuel, Users, Shield, Sparkles, ArrowLeft, Crown, CheckCircle, Star } from 'lucide-react';
 
 interface CarDetail {
   id: number;
@@ -18,54 +13,42 @@ interface CarDetail {
   pricePerDay: number;
   status: string;
   imageUrl: string | null;
+  brand?: string;
   year?: number;
-  color?: string;
+  seatCapacity?: number;
+  transmission?: string;
+  fuelType?: string;
   description?: string;
 }
 
 export default function CarDetailPage() {
-  const { id } = useParams();
-  const router = useRouter();
-  const { user } = useAuth();
-  const { showToast } = useToast();
+  const params = useParams();
+  const id = params.id;
+  
   const [car, setCar] = useState<CarDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isBooking, setIsBooking] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [rentalDays, setRentalDays] = useState(1);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchCar = async () => {
-      try {
-        const response = await api.get(`/cars/${id}`);
-        setCar(response.data);
-      } catch (error) {
-        console.error('Gagal mengambil detail mobil:', error);
-        showToast('Failed to load car details', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     if (id) {
-      fetchCar();
+      api.get(`/cars/${id}`)
+        .then(res => {
+          console.log('Car detail:', res.data);
+          setCar(res.data);
+        })
+        .catch(err => {
+          console.error(err);
+          setError('Failed to load car details');
+        })
+        .finally(() => setLoading(false));
     }
-  }, [id, showToast]);
+  }, [id]);
 
-  const handleBooking = () => {
-    if (!user) {
-      showToast('Please login first', 'error');
-      router.push('/login');
-      return;
-    }
+  const isAvailable = car?.status?.toLowerCase() === 'available';
+  const totalPrice = car ? car.pricePerDay * rentalDays : 0;
 
-    if (car?.status?.toLowerCase() !== 'available') {
-      showToast('Car is not available', 'error');
-      return;
-    }
-
-    router.push(`/booking/${id}`);
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-white to-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -76,104 +59,208 @@ export default function CarDetailPage() {
     );
   }
 
-  if (!car) {
+  if (error || !car) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <p className="text-gray-500">Car not found</p>
-        <Link href="/cars" className="text-[#D4AF37] hover:underline mt-2 inline-block">
-          Back to Car List
-        </Link>
+      <div className="min-h-screen bg-gradient-to-br from-white to-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-fit">
+            <Car className="w-12 h-12 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Car Not Found</h2>
+          <p className="text-gray-500 mb-6">{error || 'The car you are looking for does not exist'}</p>
+          <Link href="/cars">
+            <button className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transition">
+              Back to Cars
+            </button>
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const isAvailable = car.status?.toLowerCase() === 'available';
-
-    function formatCurrency(pricePerDay: number): import("react").ReactNode {
-        throw new Error('Function not implemented.');
-    }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        <div className="max-w-5xl mx-auto">
-          <Link href="/cars" className="inline-flex items-center gap-2 text-gray-500 hover:text-[#D4AF37] transition mb-6">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Car List
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-white to-gray-50">
+      {/* Back Button */}
+      <div className="container mx-auto px-6 py-6">
+        <Link href="/cars">
+          <button className="flex items-center gap-2 text-gray-600 hover:text-[#D4AF37] transition">
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to all cars</span>
+          </button>
+        </Link>
+      </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="grid md:grid-cols-2 gap-0">
-              {/* Image Section */}
-              <div className="h-80 md:h-auto bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                {car.imageUrl ? (
-                  <img 
-                    src={car.imageUrl} 
-                    alt={car.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Car className="w-32 h-32 text-gray-400" />
-                  </div>
-                )}
+      <div className="container mx-auto px-6 pb-16">
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Left Column - Image */}
+          <div className="space-y-4">
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 aspect-video">
+              {car.imageUrl ? (
+                <img 
+                  src={car.imageUrl} 
+                  alt={car.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Car className="w-32 h-32 text-gray-400" />
+                </div>
+              )}
+              
+              {/* Status Badge */}
+              <div className={`absolute top-4 right-4 px-4 py-2 rounded-full text-sm font-semibold ${
+                isAvailable 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {isAvailable ? 'Available Now' : 'Currently Rented'}
               </div>
 
-              {/* Info Section */}
-              <div className="p-6 md:p-8">
-                <div className="flex justify-between items-start mb-4">
+              {/* Premium Badge */}
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-[#D4AF37]/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                <Crown className="w-4 h-4 text-white" />
+                <span className="text-white text-sm font-semibold">Premium Selection</span>
+              </div>
+            </div>
+
+            {/* Trust indicators */}
+            <div className="flex justify-center gap-4 pt-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Shield className="w-4 h-4 text-[#D4AF37]" />
+                <span>Insured</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4 text-[#D4AF37]" />
+                <span>24/7 Support</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                <span>Free Cancellation</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Details */}
+          <div>
+            {/* Car Title */}
+            <div className="mb-6">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{car.name}</h1>
+              <p className="text-gray-500">{car.plateNumber}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1">
+                  <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
+                  <span className="font-semibold">4.9</span>
+                </div>
+                <span className="text-gray-400">|</span>
+                <span className="text-gray-500 text-sm">2,500+ reviews</span>
+              </div>
+            </div>
+
+            {/* Description */}
+            {car.description && (
+              <p className="text-gray-600 mb-6 leading-relaxed">{car.description}</p>
+            )}
+
+            {/* Specifications Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-8 p-4 bg-gray-50 rounded-xl">
+              {car.brand && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <Car className="w-5 h-5 text-[#D4AF37]" />
+                  </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-1">{car.name}</h1>
-                    <p className="text-gray-500">{car.plateNumber}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
-                    <span className="font-semibold text-gray-800">4.9</span>
-                    <span className="text-gray-400 text-sm">(124 reviews)</span>
+                    <p className="text-xs text-gray-500">Brand</p>
+                    <p className="font-semibold text-gray-800">{car.brand}</p>
                   </div>
                 </div>
-
-                <div className="border-t border-b py-4 my-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Price per day</span>
-                    <span className="text-3xl font-bold text-[#D4AF37]">
-                      {formatCurrency(car.pricePerDay)}
-                    </span>
+              )}
+              
+              {car.year && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Year</p>
+                    <p className="font-semibold text-gray-800">{car.year}</p>
                   </div>
                 </div>
-
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-3 h-3 rounded-full ${isAvailable ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <span className={`font-medium ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                      {isAvailable ? 'Available Now' : 'Currently Rented'}
-                    </span>
+              )}
+              
+              {car.seatCapacity && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <Users className="w-5 h-5 text-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Seats</p>
+                    <p className="font-semibold text-gray-800">{car.seatCapacity}</p>
                   </div>
                 </div>
-
-                <button
-                  onClick={handleBooking}
-                  disabled={!isAvailable || isBooking}
-                  className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    isAvailable
-                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white hover:shadow-lg hover:scale-[1.02]'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {!user
-                    ? 'Login to Rent'
-                    : isAvailable
-                    ? 'Rent Now'
-                    : 'Not Available'}
-                </button>
-
-                <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-green-700">Free cancellation within 24 hours</span>
+              )}
+              
+              {car.transmission && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <Car className="w-5 h-5 text-[#D4AF37]" />
                   </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Transmission</p>
+                    <p className="font-semibold text-gray-800">{car.transmission}</p>
+                  </div>
+                </div>
+              )}
+              
+              {car.fuelType && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <Fuel className="w-5 h-5 text-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Fuel</p>
+                    <p className="font-semibold text-gray-800">{car.fuelType}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Price & Rental Duration */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <p className="text-3xl font-bold text-[#D4AF37]">
+                    Rp{car.pricePerDay.toLocaleString()}
+                  </p>
+                  <p className="text-gray-500 text-sm">per day</p>
+                </div>
+                
+                {/* Rental Days Selector */}
+                <div className="flex items-center gap-3">
+                  
                 </div>
               </div>
+
+              
+              {/* Book Now Button */}
+              {isAvailable ? (
+                <Link href={`/booking/${car.id}?days=${rentalDays}`}>
+                  <button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Book Now
+                  </button>
+                </Link>
+              ) : (
+                <button className="w-full bg-gray-100 text-gray-400 py-3 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center gap-2">
+                  Not Available for Rent
+                </button>
+              )}
+            </div>
+
+            {/* Additional Info */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 text-center">
+                Secure booking • Free cancellation up to 24 hours • No hidden fees
+              </p>
             </div>
           </div>
         </div>
